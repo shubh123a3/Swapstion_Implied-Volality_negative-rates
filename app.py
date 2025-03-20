@@ -339,12 +339,12 @@ elif option=="Implied Volatility":
         plt.grid()
         plt.xlabel('strike, K')
         plt.ylabel('implied volatility')
-        
+
         legend = []
         Notional = 1.0
         for etaTemp in etaV:
             optPrice = HW_CapletFloorletPrice(CP, Notional, K, lambd, etaTemp, P0T, T1, T2)
-            # Implied volatilities
+            # Implied volatilities fixed
             IV = np.zeros([len(K), 1])
             for idx in range(0, len(K)):
                 valFrwd = optPrice[idx] / P0T(T2) / (T2 - T1)
