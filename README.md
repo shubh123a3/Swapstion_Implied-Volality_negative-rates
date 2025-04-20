@@ -1,5 +1,9 @@
 # Swaption Implied Volatility under Negative Rates
 
+
+https://github.com/user-attachments/assets/79393005-4a59-4f58-85b8-c4ecacaeea80
+
+
 This repository implements a Python framework for modeling negative interest rates and computing swaption and caplet/floorlet implied volatilities using the Hull–White one-factor model and Black-76 methodology.
 
 ## Overview
