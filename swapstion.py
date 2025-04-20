@@ -60,7 +60,7 @@ def HW_A(lambd, eta, P0T, T1, T2):
     zGrid = np.linspace(0.0, tau, 250)
     B_r = lambda tau: 1.0 / lambd * (np.exp(-lambd * tau) - 1.0)
     theta = HW_theta(lambd, eta, P0T)
-    temp1 = lambd * integrate.trapz(theta(T2 - zGrid) * B_r(zGrid), zGrid)
+    temp1 = lambd * np.trapz(theta(T2 - zGrid) * B_r(zGrid), zGrid)
 
     temp2 = eta * eta / (4.0 * np.power(lambd, 3.0)) * (
             np.exp(-2.0 * lambd * tau) * (4 * np.exp(lambd * tau) - 1.0) - 3.0) + eta * eta * tau / (
@@ -88,7 +88,7 @@ def HWMean_r(P0T, lambd, eta, T):
     theta = HW_theta(lambd, eta, P0T)
     zGrid = np.linspace(0.0, T, 2500)
     temp = lambda z: theta(z) * np.exp(-lambd * (T - z))
-    r_mean = r0 * np.exp(-lambd * T) + lambd * integrate.trapz(temp(zGrid), zGrid)
+    r_mean = r0 * np.exp(-lambd * T) + lambd * np.trapz(temp(zGrid), zGrid)
     return r_mean
 
 
@@ -114,7 +114,7 @@ def HW_Mu_FrwdMeasure(P0T, lambd, eta, T):
 
     temp = lambda z: theta_hat(z, T) * np.exp(-lambd * (T - z))
 
-    r_mean = r0 * np.exp(-lambd * T) + lambd * integrate.trapz(temp(zGrid), zGrid)
+    r_mean = r0 * np.exp(-lambd * T) + lambd * np.trapz(temp(zGrid), zGrid)
 
     return r_mean
 

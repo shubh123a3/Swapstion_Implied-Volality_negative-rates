@@ -734,6 +734,7 @@ elif option=="Caplet/Floorlet Pricing":
     plt.ylabel('Price')
     plt.grid()
     st.pyplot(fig2)
+    # Plotting Caplet and Floorlet prices
 
 
 
