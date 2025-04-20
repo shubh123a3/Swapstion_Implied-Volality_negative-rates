@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 import scipy.integrate as integrate
 import scipy.optimize as optimize
+import swapstion
+import negative_reates
 
 
 # This class defines puts and calls
@@ -215,39 +217,65 @@ option_type={"Call":OptionType.CALL,"Put":OptionType.PUT}
 slected_option=st.sidebar.selectbox("Select the option type",option_type.keys())
 CP=option_type[slected_option]
 NoOfPaths=st.sidebar.slider("Number of paths",min_value=1000,max_value=10000,step=100)
-NoOfSteps=st.sidebar.slider("Number of steps",min_value=10,max_value=2000,step=1000)
+NoOfSteps=st.sidebar.slider("Number of steps",min_value=10,max_value=2000,step=10)
 lambd=st.sidebar.slider("Lambda",min_value=0.01,max_value=0.1,step=0.01,value=0.02)
 eta=st.sidebar.slider("Eta",min_value=0.01,max_value=0.1,step=0.01,value=0.02)
 
 if option=="Swaption Pricing":
     st.subheader("Swaption Pricing")
     st.write("This section calculates the price of a swaption using the Hull-White model")
-    st.write("The Hull-White model is a single-factor short rate model as it assumes that the short rate is the only source of uncertainty in the economy")
-    st.write("The Hull-White model is given by the following stochastic differential equation:")
-    st.latex(r'''
-    dr(t) = [\theta(t) - \lambda r(t)]dt + \eta dW(t)
-    ''')
-    st.write("where:")
-    st.latex(r'''
-    \theta(t) = \frac{1}{\lambda} \frac{df(0,t)}{dt} + f(0,t) + \frac{\eta^2}{2\lambda^2} (1 - e^{-2\lambda t})
-    ''')
-    st.write("The price of a swaption is given by:")
-    st.latex(r'''
-    P(0,T_1,T_2) = \frac{1}{N} \mathbb{E}^Q \left[ \left( L(T_1,T_2) - K \right)^+ \right]
-    ''')
-    st.write("where:")
-    st.latex(r'''
-    L(T_1,T_2) = \frac{1}{T_2 - T_1} \left( \frac{P(0,T_1)}{P(0,T_2)} - 1 \right)
-    ''')
-    st.write("The price of a swaption is calculated using the Monte Carlo method")
-    st.write("The price of a swaption is calculated using the following steps:")
-    st.write("1. Generate paths of the short rate using the Hull-White model")
-    st.write("2. Calculate the payoff of the swaption for each path")
-    st.write("3. Average the payoffs to get the price of the swaption")
-    st.write("The price of a swaption is given by:")
-    st.latex(r'''
-    P(0,T_1,T_2) = \frac{1}{N} \sum_{i=1}^{N} \left( \frac{P(0,T_1)}{P(0,T_2)} - K \right)^+
-    ''')
+
+    P0T = lambda T: np.exp(-0.1 * T)  # np.exp(-0.03*T*T-0.1*T)
+    r0 = HW_r_0(P0T, lambd, eta)
+
+    N = st.sidebar.number_input("Notonial", min_value=0.0, max_value=1000000.0, value=7000.0, step=1000.0)
+    T_end = 50
+    Tgrid = np.linspace(0, T_end, int(N))
+
+
+    # Swaption parameters
+    Tm =st.sidebar.number_input("Enter the value of Tm", min_value=0.0, max_value=40.0, value=5.0, step=0.01)
+    K_swap = 10.0
+    payment_times = np.arange(6.0, 11.0, 1.0)
+    accruals = [1.0] * len(payment_times)
+
+    # Price swaption based on option type
+    if CP == OptionType.CALL:
+        price = swapstion.price_swaption(OptionType.CALL, lambd, eta, P0T, Tm, payment_times, accruals, K_swap, N)
+        st.subheader("Payer Swaption Put price: for matuiry of " + str(Tm) + ' -- ' + str(price))
+
+        # Plot price vs strike for call option
+        st.write("visualization of the call option")
+        st.write("from strike 0.01 to 0.10")
+        strikes = np.linspace(0.01, 0.10, 10)
+        prices_call = [swapstion.price_swaption(OptionType.CALL, lambd, eta, P0T, Tm, payment_times, accruals, K, N) for K in
+                       strikes]
+
+        fig2=plt.figure(2)
+        plt.plot(strikes, prices_call, marker='o', color='blue')
+        plt.xlabel('Swap Rate Strike')
+        plt.ylabel('Swaption Price')
+        plt.title('Payer Swaption (Call) Prices under Hull-White Model')
+        plt.grid(True)
+        st.pyplot(fig2)
+
+    elif CP == OptionType.PUT:
+        pricePut = swapstion.price_swaption(OptionType.PUT, lambd, eta, P0T, Tm, payment_times, accruals, K_swap, N)
+        st.subheader("Reciver  Swaption Put price: for matuiry of " + str(Tm) +' -- ' + str(pricePut))
+
+        # Plot price vs strike for put option
+        strikes = np.linspace(0.01, 0.10, 10)
+        prices_put = [swapstion.price_swaption(OptionType.PUT, lambd, eta, P0T, Tm, payment_times, accruals, K, N) for K in
+                      strikes]
+        st.write("visualization of the pUT option")
+        st.write("from strike 0.01 to 0.10")
+        fig2=plt.figure(2)
+        plt.plot(strikes, prices_put, marker='x', color='red')
+        plt.xlabel('Swap Rate Strike')
+        plt.ylabel('Swaption Price')
+        plt.title('Receiver Swaption (Put) Prices under Hull-White Model')
+        plt.grid(True)
+        st.pyplot(fig2)
 #-----------------------------------------------------------------------------------------------------------------------#
 elif option=="Implied Volatility":
     st.subheader("Implied Volatility")
@@ -595,5 +623,118 @@ elif option=="Option on Zero Coupon Bond":
     plt.xlabel('T')
     plt.ylabel('P(0,T)')
     st.pyplot(plt)
+#--------------------------------------------------------------------------------------------------------------------------
+elif option=="Negative Rates":
+    st.write("Europian Option pricing under negative rates")
+    T = st.sidebar.slider("Enter the maturity of the option", min_value=0.0, max_value=50.0, value=3.0, step=0.1)
+    sigma = st.sidebar.number_input("Enter the volatility of the process", min_value=0.0, max_value=1.0, value=0.2,step=0.01)
+    L0 = st.sidebar.number_input("Enter negative Interest rate", min_value=-1.0, max_value=1.0, value=-0.05, step=0.01)
+    shift = st.sidebar.number_input("Enter the shift", min_value=0.0, max_value=1.0, value=0.1, step=0.01)
+    K= st.sidebar.number_input("Enter the strike", min_value=0.0, max_value=100.0, value=0.95, step=0.01)
+    K = [K]
+    P0T = lambda T: np.exp(-0.1 * T)
+
+    np.random.seed(4)
+    Paths = T = st.sidebar.number_input("Enter the maturity of the option", min_value=0.0, max_value=50.0, value=3.0, step=0.1)
+    sigma = st.sidebar.slider("Enter the volatility of the process", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
+    Paths = negative_reates.GeneratePathsGBMShifted(NoOfPaths, NoOfSteps, T, 0.0, sigma, L0, shift)
+    time = Paths["time"]
+    L = Paths["S"]
+
+    st.write(np.mean(L[:, -1]))
+    fig1=plt.figure(1)
+    plt.plot(time, np.transpose(L[0:20, :]))
+    plt.grid()
+    plt.xlabel('Time')
+    plt.ylabel('Paths')
+    plt.title('Paths of shifted GBM')
+    st.pyplot(fig1)
+
+    fig2=plt.figure(2)
+
+    legend = []
+    shiftV = [1.0, 2.0, 3.0, 4.0, 5.0]
+    for shiftTemp in shiftV:
+        x = np.linspace(-shiftTemp, 10, 1000)
+        lognnormPDF = lambda x, t: stats.lognorm.pdf(x + shiftTemp, scale=np.exp(np.log(L0 + shiftTemp) + (- 0.5 * sigma * sigma) * t),s=np.sqrt(t) * sigma)
+        pdf_x = lognnormPDF(x, T)
+        plt.plot(x, pdf_x)
+        legend.append('shift={0}'.format(shiftTemp))
+    plt.legend(legend)
+    plt.xlabel('x')
+    plt.ylabel('pdf')
+    plt.title('shifted lognormal density')
+    plt.grid()
+    st.pyplot(fig2)
+
+
+
+    # Shift Effect on Option prices
+    fig4=plt.figure(4)
+    legend = []
+    for shiftTemp in [0.2, 0.3, 0.4, 0.5]:
+        K = np.linspace(-shiftTemp, np.abs(L0) * 6.0, 25)
+        optPriceExact = P0T(T) * negative_reates.BS_Call_Put_Option_Price_Shifted(CP, L0, K, sigma, T, 0.0, shiftTemp)
+        plt.plot(K, optPriceExact)
+        legend.append('shift={0}'.format(shiftTemp))
+    plt.grid()
+    plt.xlabel('strike,K')
+    plt.ylabel('option price')
+    plt.legend(legend)
+    st.pyplot(fig4)
+
+elif option=="Caplet/Floorlet Pricing":
+    st.subheader("Caplet/Floorlet Pricing")
+
+    P0T = lambda T: np.exp(-0.1 * T)  # np.exp(-0.03*T*T-0.1*T)
+    r0 = HW_r_0(P0T, lambd, eta)
+    # T1 and T2 ,T1 will end mc and T2 will be the maturity of the option
+    T1 = st.sidebar.number_input("Enter the first maturity of the option", min_value=0.0, max_value=50.0, value=4.0,
+                                    step=0.1)
+    T2 = st.sidebar.number_input("Enter the second maturity of the option", min_value=1.0, max_value=50.0, value=8.0,
+                                    step=0.1)
+
+
+    N = 25
+    T_end = 50
+    Tgrid = np.linspace(0, T_end, N)
+    Exact = np.zeros([N, 1])
+    Proxy = np.zeros([N, 1])
+    for i, Ti in enumerate(Tgrid):
+        Proxy[i] = HW_ZCB(lambd, eta, P0T, 0.0, Ti, r0)
+        Exact[i] = P0T(Ti)
+    fig1=plt.figure(1)
+    plt.grid()
+    plt.plot(Tgrid, Exact, '-k')
+    plt.plot(Tgrid, Proxy, '--r')
+    plt.legend(["Analytcal ZCB", "Monte Carlo ZCB"])
+    plt.title('P(0,T) from Monte Carlo vs. Analytical expression')
+    plt.xlabel('T')
+    plt.ylabel('P(0,T)')
+    st.pyplot(fig1)
+
+    N_nominal = st.sidebar.slider("Enter the notional amount", min_value=0.0, max_value=1000000.0, value=100000.0, step=10000.0)
+    K_array = np.linspace(0.01, 0.10, 10)
+    caplet_prices = []
+    floorlet_prices = []
+    for K in K_array:
+        caplet_prices.append(
+            HW_CapletFloorletPrice(OptionType.CALL, N_nominal, K, lambd, eta, P0T, T1, T2)
+        )
+        floorlet_prices.append(
+            HW_CapletFloorletPrice(OptionType.PUT, N_nominal, K, lambd, eta, P0T, T1, T2)
+        )
+
+    fig2=plt.figure(figsize=(10, 5))
+    plt.plot(K_array, caplet_prices, marker='o', label='Caplet Prices')
+    plt.plot(K_array, floorlet_prices, marker='x', label='Floorlet Prices')
+    plt.legend()
+    plt.title('Caplet and Floorlet Prices vs Strike')
+    plt.xlabel('Strike Rate')
+    plt.ylabel('Price')
+    plt.grid()
+    st.pyplot(fig2)
+
+
 
 
